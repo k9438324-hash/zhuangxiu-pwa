@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="装修文案">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4CAF50">
+<title>装修文案 · 每日生成</title>
+
+<style>
+/* ═══════════════ Reset & Base ═══════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --safe-top:env(safe-area-inset-top,20px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --tab-h:50px; --nav-h:44px;
+  --radius:12px; --radius-sm:8px;
+  --bg:#f2f2f7; --card:#ffffff; --sep:#e5e5ea;
+  --text:#1c1c1e; --text2:#3a3a3c; --text3:#8e8e93;
+  --blue:#007aff; --green:#34c759; --pink:#ff2d55; --orange:#ff9500;
+  --gray:#8e8e93; --gray5:#e5e5ea; --gray6:#f2f2f7;
+}
+html,body{height:100%;overflow:hidden;-webkit-font-smoothing:antialiased}
+body{
+  font-family:-apple-system,system-ui,'SF Pro Display','SF Pro Text','Helvetica Neue',sans-serif;
+  background:var(--bg);color:var(--text);font-size:16px;
+  padding-top:var(--safe-top);padding-bottom:calc(var(--safe-bottom) + var(--tab-h));
+}
+/* scrollbar */
+::-webkit-scrollbar{width:0;height:0}
+
+/* ═══════════════ Nav Bar ═══════════════ */
+.nav-bar{
+  position:sticky;top:0;z-index:100;
+  height:var(--nav-h);display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;background:rgba(242,242,247,0.92);backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);border-bottom:0.5px solid var(--sep);
+}
+.nav-title{font-size:17px;font-weight:600;letter-spacing:0.3px}
+.nav-back{color:var(--blue);font-size:16px;cursor:pointer;padding:4px 0;border:none;background:none;display:none;align-items:center;gap:4px}
+.nav-back svg{width:12px;height:20px}
+.nav-action{color:var(--blue);font-size:16px;cursor:pointer;border:none;background:none;padding:4px 8px}
+
+/* ═══════════════ Page Container ═══════════════ */
+.page{display:none;height:calc(100vh - var(--safe-top) - var(--safe-bottom) - var(--tab-h));overflow-y:auto;-webkit-overflow-scrolling:touch}
+.page.active{display:block}
+.page-inner{padding:12px 16px 24px}
+
+/* ═══════════════ Tab Bar ═══════════════ */
+.tab-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  height:calc(var(--tab-h) + var(--safe-bottom));
+  padding-bottom:var(--safe-bottom);
+  display:flex;background:rgba(242,242,247,0.94);backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border-top:0.5px solid var(--sep);
+}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent;gap:1px}
+.tab-icon{font-size:22px;line-height:1;transition:transform 0.15s}
+.tab-label{font-size:10px;font-weight:500;color:var(--text3);letter-spacing:0.2px}
+.tab-item.active .tab-icon{transform:scale(1.05)}
+.tab-item.active .tab-label{color:var(--blue)}
+.tab-item[data-tab="lao_zhang"].active .tab-label{color:var(--blue)}
+.tab-item[data-tab="yan_jie"].active .tab-label{color:var(--pink)}
+.tab-item[data-tab="chen_ru"].active .tab-label{color:var(--green)}
+
+/* ═══════════════ Persona Header ═══════════════ */
+.persona-header{text-align:center;padding:20px 0 16px}
+.persona-avatar{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:28px;color:#fff}
+.persona-name{font-size:22px;font-weight:700}
+.persona-tagline{font-size:13px;color:var(--text3);margin-top:3px}
+.avatar-blue{background:linear-gradient(135deg,#2196F3,#1565C0)}
+.avatar-pink{background:linear-gradient(135deg,#E91E63,#C2185B)}
+.avatar-green{background:linear-gradient(135deg,#4CAF50,#2E7D32)}
+
+/* ═══════════════ Generate Button ═══════════════ */
+.gen-btn{
+  display:block;width:100%;padding:14px;border:none;border-radius:var(--radius);
+  font-size:16px;font-weight:600;color:#fff;cursor:pointer;
+  background:linear-gradient(135deg,#667eea,#764ba2);
+  transition:opacity 0.2s,transform 0.1s;text-align:center;
+  -webkit-tap-highlight-color:transparent;
+}
+.gen-btn:active{transform:scale(0.98);opacity:0.9}
+.gen-btn.loading{opacity:0.7;pointer-events:none}
+.gen-btn .spinner{display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;margin:0 auto}
+.gen-btn.loading .spinner{display:block}
+.gen-btn.loading .btn-text{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══════════════ Section & Cards ═══════════════ */
+.section{margin-top:16px}
+.section-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 4px}
+.section-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.section-title{font-size:15px;font-weight:600;color:var(--text2)}
+.section-count{font-size:12px;color:var(--text3);margin-left:auto}
+
+.copy-card{
+  background:var(--card);border-radius:var(--radius-sm);
+  padding:12px 14px;margin-bottom:8px;cursor:pointer;
+  transition:transform 0.1s;border-left:3px solid var(--gray5);
+  -webkit-tap-highlight-color:transparent;
+}
+.copy-card:active{transform:scale(0.98)}
+.copy-card .card-num{font-size:11px;color:var(--text3);font-weight:500;margin-bottom:2px}
+.copy-card .card-title{font-size:15px;font-weight:600;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.copy-card .card-hook{font-size:13px;color:var(--text3);margin-top:4px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.copy-card .card-tags{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.copy-card .card-tags span{font-size:10px;padding:1px 6px;border-radius:4px;background:var(--gray6);color:var(--text3)}
+.copy-card.card-process{border-left-color:var(--orange)}
+.copy-card.card-case{border-left-color:var(--green)}
+.copy-card.card-talk{border-left-color:#9c27b0}
+
+/* ═══════════════ Detail Panel (Slide-up) ═══════════════ */
+.detail-overlay{
+  display:none;position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,0.4);animation:fadeIn 0.2s;
+}
+.detail-overlay.open{display:block}
+.detail-sheet{
+  position:fixed;bottom:0;left:0;right:0;z-index:301;
+  max-height:85vh;background:var(--card);border-radius:16px 16px 0 0;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.08,0.24,1);
+  padding:0 0 calc(var(--safe-bottom)+16px);
+}
+.detail-overlay.open .detail-sheet{transform:translateY(0)}
+.detail-handle{width:36px;height:4px;border-radius:2px;background:var(--gray5);margin:8px auto 4px}
+.detail-close{position:absolute;top:12px;right:16px;font-size:24px;color:var(--text3);cursor:pointer;border:none;background:none;line-height:1;padding:4px}
+.detail-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;margin:16px 16px 0}
+.detail-title{font-size:19px;font-weight:700;margin:8px 16px;line-height:1.4}
+.detail-hook{background:var(--gray6);margin:0 16px 12px;padding:12px;border-radius:var(--radius-sm);font-size:14px;color:var(--text2);line-height:1.6}
+.detail-hook-label{font-size:11px;font-weight:600;color:var(--blue);margin-bottom:4px}
+.detail-body{padding:0 16px;font-size:15px;line-height:1.8;color:var(--text)}
+.detail-body p{margin-bottom:10px}
+.detail-ending{background:#FFF8E1;margin:12px 16px;padding:12px;border-radius:var(--radius-sm);font-size:14px;line-height:1.6}
+.detail-ending-label{font-size:11px;font-weight:600;color:#F57F17;margin-bottom:4px}
+.detail-tags{display:flex;gap:4px;flex-wrap:wrap;margin:8px 16px}
+.detail-tags span{font-size:11px;padding:2px 8px;border-radius:4px;background:var(--gray6);color:var(--text3)}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* ═══════════════ Settings ═══════════════ */
+.setting-group{background:var(--card);border-radius:var(--radius);margin-bottom:16px;overflow:hidden}
+.setting-group-title{font-size:13px;font-weight:600;color:var(--text3);padding:16px 16px 6px;text-transform:uppercase;letter-spacing:0.5px}
+.setting-row{display:flex;align-items:center;padding:10px 16px;min-height:44px;border-bottom:0.5px solid var(--sep)}
+.setting-row:last-child{border-bottom:none}
+.setting-label{font-size:15px;color:var(--text);width:90px;flex-shrink:0}
+.setting-input{flex:1;border:none;outline:none;font-size:15px;color:var(--text);background:transparent;text-align:right;padding:4px 0}
+.setting-input::placeholder{color:var(--text3)}
+.setting-desc{font-size:12px;color:var(--text3);padding:4px 16px 12px;line-height:1.4}
+
+/* ═══════════════ Empty State ═══════════════ */
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-state .empty-icon{font-size:48px;margin-bottom:12px}
+.empty-state .empty-text{font-size:15px;line-height:1.6}
+
+/* ═══════════════ Toast ═══════════════ */
+.toast{
+  position:fixed;top:calc(60px + var(--safe-top));left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.8);color:#fff;padding:10px 20px;border-radius:var(--radius);
+  font-size:14px;z-index:999;opacity:0;transition:opacity 0.3s;pointer-events:none;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.toast.show{opacity:1}
+
+/* ═══════════════ Status Indicator ═══════════════ */
+.status-badge{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:4px 10px;border-radius:12px;margin-top:8px}
+.status-badge.idle{background:var(--gray6);color:var(--text3)}
+.status-badge.loading{background:#E3F2FD;color:var(--blue)}
+.status-badge.done{background:#E8F5E9;color:var(--green)}
+.status-badge.error{background:#FFEBEE;color:#d32f2f}
+</style>
+</head>
+<body>
+
+<!-- ═══ Toast ═══ -->
+<div id="toast" class="toast"></div>
+
+<!-- ═══ Nav Bar ═══ -->
+<nav class="nav-bar" id="navBar">
+  <button class="nav-back" id="navBack" onclick="app.navBack()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    <span id="navBackLabel">返回</span>
+  </button>
+  <span class="nav-title" id="navTitle">装修文案</span>
+  <span class="nav-action" id="navAction"></span>
+</nav>
+
+<!-- ═══ Pages ═══ -->
+
+<!-- 老张 -->
+<div class="page active" id="page-lao_zhang">
+  <div class="page-inner" id="content-lao_zhang">
+    <div class="persona-header">
+      <div class="persona-avatar avatar-blue">张</div>
+      <div class="persona-name">老张 · 大连旧改</div>
+      <div class="persona-tagline">从业14年 | 专注大连旧房翻新 | 已落地800+案例</div>
+    </div>
+    <button class="gen-btn" onclick="app.generate('lao_zhang')" id="btn-lao_zhang">
+      <span class="btn-text">✨ 生成今日文案（10条）</span>
+      <span class="spinner"></span>
+    </button>
+    <div id="status-lao_zhang"></div>
+    <div id="copies-lao_zhang"></div>
+  </div>
+</div>
+
+<!-- 燕姐 -->
+<div class="page" id="page-yan_jie">
+  <div class="page-inner" id="content-yan_jie">
+    <div class="persona-header">
+      <div class="persona-avatar avatar-pink">燕</div>
+      <div class="persona-name">燕姐 · 徐州简装</div>
+      <div class="persona-tagline">从业8年 | 专注徐州简装 | 已服务1200+业主</div>
+    </div>
+    <button class="gen-btn" onclick="app.generate('yan_jie')" id="btn-yan_jie">
+      <span class="btn-text">✨ 生成今日文案（10条）</span>
+      <span class="spinner"></span>
+    </button>
+    <div id="status-yan_jie"></div>
+    <div id="copies-yan_jie"></div>
+  </div>
+</div>
+
+<!-- 陈茹 -->
+<div class="page" id="page-chen_ru">
+  <div class="page-inner" id="content-chen_ru">
+    <div class="persona-header">
+      <div class="persona-avatar avatar-green">陈</div>
+      <div class="persona-name">陈茹 · 徐州建材</div>
+      <div class="persona-tagline">深耕建材供应链10年 | 源头工厂直供 | 服务300+公司</div>
+    </div>
+    <button class="gen-btn" onclick="app.generate('chen_ru')" id="btn-chen_ru">
+      <span class="btn-text">✨ 生成今日文案（10条）</span>
+      <span class="spinner"></span>
+    </button>
+    <div id="status-chen_ru"></div>
+    <div id="copies-chen_ru"></div>
+  </div>
+</div>
+
+<!-- 设置 -->
+<div class="page" id="page-settings">
+  <div class="page-inner">
+    <div class="persona-header" style="padding-bottom:8px">
+      <div style="font-size:40px;margin-bottom:6px">⚙️</div>
+      <div class="persona-name" style="font-size:20px">设置</div>
+      <div class="persona-tagline">配置API后即可生成文案</div>
+    </div>
+
+    <div class="setting-group-title">API 配置</div>
+    <div class="setting-group">
+      <div class="setting-row">
+        <span class="setting-label">接口地址</span>
+        <input class="setting-input" id="apiEndpoint" type="url" placeholder="https://api.example.com" value="">
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">API Key</span>
+        <input class="setting-input" id="apiKey" type="password" placeholder="sk-..." value="">
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">模型名称</span>
+        <input class="setting-input" id="apiModel" type="text" placeholder="gpt-4o / claude-3.5" value="gpt-4o">
+      </div>
+    </div>
+    <div class="setting-desc">支持 OpenAI 兼容接口。可在设置中填入你的 API 代理地址和密钥。</div>
+
+    <div class="setting-group-title">数据管理</div>
+    <div class="setting-group">
+      <div class="setting-row" style="cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="app.clearAll()">
+        <span class="setting-label" style="color:#ff3b30">清除所有数据</span>
+        <span style="margin-left:auto;font-size:13px;color:var(--text3)">删除全部历史文案</span>
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:20px 0 8px;color:var(--text3);font-size:12px;line-height:1.6">
+      装修文案客户端 v1.0<br>
+      数据仅存储在本地设备
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Detail Sheet ═══ -->
+<div class="detail-overlay" id="detailOverlay" onclick="app.closeDetail(event)">
+  <div class="detail-sheet" id="detailSheet">
+    <div class="detail-handle"></div>
+    <button class="detail-close" onclick="app.closeDetail()">✕</button>
+    <div id="detailBadge" class="detail-badge"></div>
+    <div id="detailTitle" class="detail-title"></div>
+    <div id="detailHook" class="detail-hook"><div class="detail-hook-label">🎬 黄金前3秒</div><span id="detailHookText"></span></div>
+    <div id="detailBody" class="detail-body"></div>
+    <div id="detailEnding" class="detail-ending"><div class="detail-ending-label">📌 结尾引导</div><span id="detailEndingText"></span></div>
+    <div id="detailTags" class="detail-tags"></div>
+  </div>
+</div>
+
+<!-- ═══ Tab Bar ═══ -->
+<div class="tab-bar" id="tabBar">
+  <div class="tab-item active" data-tab="lao_zhang" onclick="app.switchTab('lao_zhang')">
+    <span class="tab-icon">🏠</span>
+    <span class="tab-label">老张</span>
+  </div>
+  <div class="tab-item" data-tab="yan_jie" onclick="app.switchTab('yan_jie')">
+    <span class="tab-icon">💁</span>
+    <span class="tab-label">燕姐</span>
+  </div>
+  <div class="tab-item" data-tab="chen_ru" onclick="app.switchTab('chen_ru')">
+    <span class="tab-icon">🏪</span>
+    <span class="tab-label">陈茹</span>
+  </div>
+  <div class="tab-item" data-tab="settings" onclick="app.switchTab('settings')">
+    <span class="tab-icon">⚙️</span>
+    <span class="tab-label">设置</span>
+  </div>
+</div>
+
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+// ═══════════════════════════════════════════════
+//  Persona Config
+// ═══════════════════════════════════════════════
+const PERSONAS = {
+  lao_zhang: {
+    name:"老张 · 大连旧房改造", id:"lao_zhang",
+    systemPrompt:`你是一名大连本地的旧房改造行业专家，人称"老张"，从业14年。请用第一人称"我"、"老张"的口吻，为短视频口播文案。语言要接地气、实在、像跟邻居聊天一样。
+
+请严格按照以下内容体系，生成10条文案（不要遗漏任何一条）：
+
+内容分配（共10条）：
+- 秀过程 5条（量房/回访/谈单/开工灵活分配）
+- 秀案例 3条（性价比型2条 + 中高端品质型1条）
+- 讲/谈 2条（观点/干货/故事灵活分配）
+
+每条文案必须包含以下字段：
+1. title: 标题（一句话吸引眼球）
+2. category: "秀过程"/"秀案例"/"讲/谈"
+3. subcategory: 具体环节名（如"量房"/"回访"/"性价比"/"品质型"/"观点"/"干货"）
+4. hook: 黄金前3秒文案（用「」括起来的原话）
+5. body: 完整口播正文（口语化、分段落、包含引导和互动）
+6. ending: 结尾引导语
+7. tags: 标签数组（3-4个）
+
+内容模板参考：
+- 秀过程·量房：业主认可开场→IP出场→业主提担心→现场解决方案
+- 秀过程·回访：客户认可前置→回访场景→客户夸赞→售后承诺
+- 秀过程·谈单：粉丝认可→核心痛点→重磅保障→现场签约
+- 秀过程·开工：业主认可→开工介绍→业主选择理由→保障承诺
+- 秀案例·性价比：面积+预算钩子→痛点警示→省钱方法→精准引导
+- 秀案例·品质型：人群预算悬念→客户需求→布局重塑→改动细节→引导
+- 讲/谈·观点：核心主张→反对痛点→坚守核心→服务背书
+- 讲/谈·干货：实用装修知识点分享
+
+结合大连本地特色（小区名、潮湿海风气候等）
+必须输出合法的JSON数组，不要包含其他任何内容。`,
+    color:"blue"
+  },
+  yan_jie: {
+    name:"燕姐 · 徐州简装装修", id:"yan_jie",
+    systemPrompt:`你是一名徐州本地的简装装修行业业务员，人称"燕姐"，从业8年。请用第一人称"我"、"燕姐"的口吻为短视频口播文案。语言要亲切接地气、替业主着想、像邻家大姐一样。
+
+请严格按照以下内容体系，生成10条文案（不要遗漏任何一条）：
+
+内容分配（共10条）：
+- 秀过程 5条
+- 秀案例 3条（性价比型2条 + 中高端品质型1条）
+- 讲/谈 2条
+
+每条文案必须包含以下字段：
+1. title: 标题
+2. category: "秀过程"/"秀案例"/"讲/谈"
+3. subcategory: 具体环节名
+4. hook: 黄金前3秒（用「」括起来的原话）
+5. body: 完整口播正文
+6. ending: 结尾引导语
+7. tags: 标签数组
+
+结合徐州本地特色（小区名、市场行情等）
+必须输出合法的JSON数组`,
+    color:"pink"
+  },
+  chen_ru: {
+    name:"陈茹 · 徐州建材供应链", id:"chen_ru",
+    systemPrompt:`你是一名徐州本地的建材供应链从业者，人称"陈茹"，深耕行业10年。请用第一人称"我"、"陈茹"的口吻为短视频口播文案。语言要专业自信、源头工厂价格优势明显。
+
+请严格按照以下内容体系，生成10条文案（不要遗漏任何一条）：
+
+内容分配（共10条）：
+- 秀过程 5条（现场/回访/洽谈/送货/验货等）
+- 秀案例 3条（性价比型2条 + 品质型1条）
+- 讲/谈 2条
+
+每条文案必须包含以下字段：
+1. title: 标题
+2. category: "秀过程"/"秀案例"/"讲/谈"
+3. subcategory: 具体环节名
+4. hook: 黄金前3秒（用「」括起来的原话）
+5. body: 完整口播正文
+6. ending: 结尾引导语
+7. tags: 标签数组
+
+注意：陈茹是做建材供应链的，不是装修公司。内容围绕建材采购、源头价格、材料挑选干货、供应链优势等。
+结合徐州本地特色
+必须输出合法的JSON数组`,
+    color:"green"
+  }
+};
+
+// ═══════════════════════════════════════════════
+//  App
+// ═══════════════════════════════════════════════
+const app = {
+  currentTab:"lao_zhang",
+  data:{},      // { lao_zhang: { "2026-05-26": [copies] } }
+
+  init(){
+    this.loadSettings();
+    this.loadData();
+    // Check if today has data for current tab
+    this.renderTab(this.currentTab);
+  },
+
+  // ── Settings ──
+  loadSettings(){
+    const s = JSON.parse(localStorage.getItem('app_settings')||'{}');
+    document.getElementById('apiEndpoint').value = s.endpoint||'';
+    document.getElementById('apiKey').value = s.key||'';
+    document.getElementById('apiModel').value = s.model||'gpt-4o';
+  },
+  saveSettings(){
+    localStorage.setItem('app_settings', JSON.stringify({
+      endpoint: document.getElementById('apiEndpoint').value.trim(),
+      key: document.getElementById('apiKey').value.trim(),
+      model: document.getElementById('apiModel').value.trim()||'gpt-4o'
+    }));
+  },
+
+  // ── Tab Switching ──
+  switchTab(tab){
+    // Save settings when leaving settings tab
+    if(this.currentTab==='settings' && tab!=='settings') this.saveSettings();
+
+    this.currentTab = tab;
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-'+tab).classList.add('active');
+    document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));
+    document.querySelector(`.tab-item[data-tab="${tab}"]`).classList.add('active');
+
+    document.getElementById('navBack').style.display = 'none';
+    if(tab==='settings'){
+      document.getElementById('navTitle').textContent = '设置';
+    } else {
+      const names = {lao_zhang:'老张',yan_jie:'燕姐',chen_ru:'陈茹'};
+      document.getElementById('navTitle').textContent = names[tab]||'装修文案';
+    }
+    if(tab!=='settings') this.renderTab(tab);
+  },
+
+  // ── Navigation (not used in current simple version) ──
+  navBack(){},
+  navPush(){},
+  navPop(){},
+
+  // ── Toast ──
+  toast(msg){
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(()=>el.classList.remove('show'), 2000);
+  },
+
+  // ── Data Storage ──
+  loadData(){
+    try {
+      this.data = JSON.parse(localStorage.getItem('app_data')||'{}');
+    } catch(e){ this.data={}; }
+    if(!this.data.lao_zhang) this.data.lao_zhang={};
+    if(!this.data.yan_jie) this.data.yan_jie={};
+    if(!this.data.chen_ru) this.data.chen_ru={};
+  },
+  saveData(){
+    localStorage.setItem('app_data', JSON.stringify(this.data));
+  },
+  getToday(){ return new Date().toISOString().slice(0,10); },
+
+  // ── Render ──
+  renderTab(tab){
+    const today = this.getToday();
+    const copies = this.data[tab]?.[today]||[];
+    const container = document.getElementById('copies-'+tab);
+    const statusEl = document.getElementById('status-'+tab);
+
+    // Status
+    if(copies.length>0){
+      statusEl.innerHTML = `<span class="status-badge done">✅ 今日已生成 ${copies.length} 条</span>`;
+    } else {
+      statusEl.innerHTML = `<span class="status-badge idle">💡 今日尚未生成，点击上方按钮</span>`;
+    }
+
+    if(copies.length===0){
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">点击上方"生成今日文案"<br>AI将自动生成10条短视频口播文案</div></div>`;
+      return;
+    }
+
+    // Group by category
+    const groups = { "秀过程":[], "秀案例":[], "讲/谈":[] };
+    copies.forEach(c=>{
+      const cat = c.category||'其他';
+      if(groups[cat]) groups[cat].push(c);
+      else groups['讲/谈'].push(c);
+    });
+
+    const catIcons = {"秀过程":"🎬","秀案例":"🏡","讲/谈":"💡"};
+    const catColors = {"秀过程":"var(--orange)","秀案例":"var(--green)","讲/谈":"#9c27b0"};
+    const catClasses = {"秀过程":"card-process","秀案例":"card-case","讲/谈":"card-talk"};
+
+    let html = '';
+    for(const [cat, items] of Object.entries(groups)){
+      if(items.length===0) continue;
+      html += `<div class="section">
+        <div class="section-header">
+          <span class="section-dot" style="background:${catColors[cat]}"></span>
+          <span class="section-title">${catIcons[cat]} ${cat}</span>
+          <span class="section-count">${items.length}条</span>
+        </div>`;
+      items.forEach(c=>{
+        const hook = c.hook||'';
+        const tags = c.tags||[];
+        html += `<div class="copy-card ${catClasses[cat]}" onclick="app.showDetail('${tab}',${c.id})">
+          <div class="card-num">#${c.id}</div>
+          <div class="card-title">${this.esc(c.title)}</div>
+          ${hook?`<div class="card-hook">${this.esc(hook)}</div>`:''}
+          <div class="card-tags">${tags.slice(0,3).map(t=>`<span>${this.esc(t)}</span>`).join('')}</div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+    container.innerHTML = html;
+  },
+
+  esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') },
+
+  // ── Detail ──
+  showDetail(tab, id){
+    const today = this.getToday();
+    const copies = this.data[tab]?.[today]||[];
+    const c = copies.find(x=>x.id===id);
+    if(!c) return;
+
+    document.getElementById('detailBadge').textContent = `${c.category} · ${c.subcategory||''}`;
+    document.getElementById('detailBadge').style.background =
+      c.category==='秀过程'?'#FFF3E0':c.category==='秀案例'?'#E8F5E9':'#F3E5F5';
+    document.getElementById('detailBadge').style.color =
+      c.category==='秀过程'?'#E65100':c.category==='秀案例'?'#2E7D32':'#6A1B9A';
+    document.getElementById('detailTitle').textContent = c.title||'';
+    document.getElementById('detailHookText').textContent = c.hook||'';
+    document.getElementById('detailHook').style.display = c.hook?'block':'none';
+
+    // Body - format paragraphs
+    const body = c.body||'';
+    document.getElementById('detailBody').innerHTML = body.split('\n').filter(Boolean).map(p=>`<p>${this.esc(p)}</p>`).join('');
+
+    document.getElementById('detailEndingText').textContent = c.ending||'';
+    document.getElementById('detailEnding').style.display = c.ending?'block':'none';
+
+    const tags = c.tags||[];
+    document.getElementById('detailTags').innerHTML = tags.map(t=>`<span>${this.esc(t)}</span>`).join('');
+
+    document.getElementById('detailOverlay').classList.add('open');
+  },
+  closeDetail(e){
+    if(e && e.target!==document.getElementById('detailOverlay')) return;
+    document.getElementById('detailOverlay').classList.remove('open');
+  },
+
+  // ── API Call ──
+  async generate(tab){
+    const settings = JSON.parse(localStorage.getItem('app_settings')||'{}');
+    const endpoint = settings.endpoint||document.getElementById('apiEndpoint').value.trim();
+    const key = settings.key||document.getElementById('apiKey').value.trim();
+    const model = settings.model||document.getElementById('apiModel').value.trim()||'gpt-4o';
+
+    if(!endpoint){ this.toast('请先在设置中填写API接口地址'); this.switchTab('settings'); return; }
+    if(!key){ this.toast('请先在设置中填写API Key'); this.switchTab('settings'); return; }
+
+    const btn = document.getElementById('btn-'+tab);
+    const statusEl = document.getElementById('status-'+tab);
+    btn.classList.add('loading');
+    statusEl.innerHTML = `<span class="status-badge loading">⏳ 生成中（约30-60秒）...</span>`;
+
+    // Build API URL - handle common endpoint formats
+    let apiUrl = endpoint.replace(/\/+$/,'');
+    if(!apiUrl.includes('/chat/completions') && !apiUrl.includes('/v1')){
+      apiUrl += '/v1/chat/completions';
+    } else if(!apiUrl.includes('/chat/completions')){
+      apiUrl += '/chat/completions';
+    }
+
+    const persona = PERSONAS[tab];
+    const today = this.getToday();
+
+    try {
+      const resp = await fetch(apiUrl, {
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Authorization':'Bearer '+key
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [
+            {role:"system", content: persona.systemPrompt},
+            {role:"user", content: `请为"${persona.name}"生成今天的10条短视频口播文案（${today}）。严格按照内容体系分配：秀过程5条、秀案例3条、讲/谈2条。返回合法的JSON数组。`}
+          ],
+          temperature: 0.7,
+          max_tokens: 8000
+        })
+      });
+
+      if(!resp.ok){
+        const err = await resp.text().catch(()=>'');
+        throw new Error(`HTTP ${resp.status}: ${err.slice(0,200)}`);
+      }
+
+      const json = await resp.json();
+      let content = json.choices?.[0]?.message?.content || '';
+      if(!content) throw new Error('API返回内容为空');
+
+      // Try to extract JSON array
+      let copies;
+      try {
+        // Find JSON array in the response
+        const m = content.match(/\[[\s\S]*\]/);
+        if(m) content = m[0];
+        copies = JSON.parse(content);
+      } catch(e){
+        throw new Error('API返回格式不是有效JSON，请检查模型是否支持JSON格式输出');
+      }
+
+      if(!Array.isArray(copies) || copies.length===0){
+        throw new Error('API返回的JSON数组为空');
+      }
+
+      // Ensure IDs
+      copies.forEach((c,i)=>{ c.id = i+1; });
+
+      // Save
+      if(!this.data[tab]) this.data[tab]={};
+      this.data[tab][today] = copies;
+      this.saveData();
+      this.renderTab(tab);
+      this.toast(`✅ 已生成 ${copies.length} 条文案`);
+
+    } catch(e){
+      statusEl.innerHTML = `<span class="status-badge error">❌ ${this.esc(e.message)}</span>`;
+      this.toast('生成失败: '+e.message);
+    } finally {
+      btn.classList.remove('loading');
+    }
+  },
+
+  // ── Clear Data ──
+  clearAll(){
+    if(confirm('确定要清除所有历史文案数据吗？此操作不可恢复。')){
+      this.data = {lao_zhang:{},yan_jie:{},chen_ru:{}};
+      this.saveData();
+      this.renderTab(this.currentTab);
+      this.toast('已清除所有数据');
+    }
+  }
+};
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', ()=>app.init());
+</script>
+</body>
+</html>

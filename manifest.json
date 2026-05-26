@@ -1,0 +1,15 @@
+{
+  "name": "装修文案 · 每日生成",
+  "short_name": "装修文案",
+  "description": "装修短视频文案每日自动生成 - 老张/燕姐/陈茹",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f2f2f7",
+  "theme_color": "#4CAF50",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
