@@ -2,7 +2,7 @@
   "name": "lei",
   "short_name": "lei",
   "description": "装修短视频文案每日自动生成 - 老张/燕姐/陈茹",
-  "start_url": "/",
+  "start_url": "/zhuangxiu-pwa/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a0a16",

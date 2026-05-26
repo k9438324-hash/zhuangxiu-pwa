@@ -1,5 +1,5 @@
 const CACHE = 'zhuangxiu-v1';
-const URLS = ['/', '/index.html', '/manifest.json', '/icon.png', '/icon-192.png'];
+const URLS = ['./', './index.html', './manifest.json', './icon.png', './icon-192.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
